@@ -713,8 +713,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 160, y: -42.9375}
-  m_SizeDelta: {x: 320, y: 85.875}
+  m_AnchoredPosition: {x: 234.66666, y: -59.8}
+  m_SizeDelta: {x: 170.66666, y: 119.6}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &325166954
 MonoBehaviour:
@@ -737,12 +737,12 @@ MonoBehaviour:
       Version=1.0.0.0, Culture=neutral, PublicKeyToken=null
   m_FontData:
     m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
-    m_FontSize: 28
+    m_FontSize: 21
     m_FontStyle: 0
     m_BestFit: 0
-    m_MinSize: 10
+    m_MinSize: 1
     m_MaxSize: 40
-    m_Alignment: 0
+    m_Alignment: 4
     m_AlignByGeometry: 0
     m_RichText: 1
     m_HorizontalOverflow: 0
@@ -2321,6 +2321,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   passwordInputField: {fileID: 1979659262}
   logText: {fileID: 635445544}
+  passwordPanel: {fileID: 1500895581}
+  ButtonPanel: {fileID: 1796549756}
+  loadingIndicatorPanel: {fileID: 325166952}
 --- !u!1 &1832042028
 GameObject:
   m_ObjectHideFlags: 0
