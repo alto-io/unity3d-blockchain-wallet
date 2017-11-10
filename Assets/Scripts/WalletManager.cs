@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.UI;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.IO;
@@ -23,6 +24,9 @@ public class WalletManager : MonoBehaviour {
 
     private bool isPaused = false;
     private bool dataSaved = false;
+
+    // events
+    static UnityEvent newAccountAdded;
 
     [System.Serializable]
     public class WalletData
@@ -47,7 +51,15 @@ public class WalletManager : MonoBehaviour {
 
     public void Start()
     {
+
+        subscribeToEvents();
         LoadWalletsFromFile();
+    }
+
+    private void subscribeToEvents()
+    {
+        newAccountAdded = new UnityEvent();
+        newAccountAdded.AddListener(RefreshWalletAccountDropdown);
     }
 
     void LoadWalletsFromFile()
@@ -61,21 +73,34 @@ public class WalletManager : MonoBehaviour {
 
             walletList = (List<WalletData>)bf.Deserialize(file);
 
-            foreach (WalletData w in walletList)
-            {
-                walletSelectionDropdown.AddOptions(new List<string> { w.address });
-            }
-
             file.Close();
+        }
+
+        RefreshWalletAccountDropdown();
+
+        logText.Log("Loaded " + walletList.Count + " Wallet/s");
+    }
+
+
+    public void RefreshWalletAccountDropdown()
+    {
+        walletSelectionDropdown.ClearOptions();
+
+        foreach (WalletData w in walletList)
+        {
+            walletSelectionDropdown.AddOptions(new List<string> { w.address });
         }
 
         // add wallet create option
         walletSelectionDropdown.AddOptions(new List<string> { "New Wallet" });
+    }
 
-
-        logText.Log("Loaded " + walletList.Count + " Wallet/s");
+    public void AccountDropdownChanged()
+    {
+        Debug.Log("Change");
 
     }
+
 
     void SaveDataToFile()
     {
@@ -159,6 +184,8 @@ public class WalletManager : MonoBehaviour {
             w.privateKey = privateKey;
 
             walletList.Add(w);
+
+            newAccountAdded.Invoke();
         });
     }
 
