@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.IO;
 
@@ -18,6 +19,7 @@ public class WalletManager : MonoBehaviour {
     public GameObject passwordPanel;
     public GameObject ButtonPanel;
     public GameObject loadingIndicatorPanel;
+    public Dropdown walletSelectionDropdown;
 
     private bool isPaused = false;
     private bool dataSaved = false;
@@ -28,7 +30,7 @@ public class WalletManager : MonoBehaviour {
         public string name;
         public string address;
 
-        // TODO: stored for convenience, may need to remove for security?
+        // TODO: stored for convenience, may need to remove for security
         public string cachedPassword;
         public string encryptedJson;
         public byte[] privateKey;
@@ -61,12 +63,15 @@ public class WalletManager : MonoBehaviour {
 
             foreach (WalletData w in walletList)
             {
-                logText.Log("Name: " +  w.name);
-                logText.Log("Address: " + w.address);
+                walletSelectionDropdown.AddOptions(new List<string> { w.address });
             }
 
             file.Close();
         }
+
+        // add wallet create option
+        walletSelectionDropdown.AddOptions(new List<string> { "New Wallet" });
+
 
         logText.Log("Loaded " + walletList.Count + " Wallet/s");
 
