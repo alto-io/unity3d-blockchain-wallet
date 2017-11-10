@@ -17,9 +17,12 @@ public class WalletManager : MonoBehaviour {
     // UI Components
     public PasswordInputField passwordInputField;
     public LogText logText;
-    public GameObject passwordPanel;
-    public GameObject ButtonPanel;
+    public GameObject createWalletPanel;
     public GameObject loadingIndicatorPanel;
+    public GameObject operationsPanel;
+    public GameObject accountInfoPanel;
+    public GameObject QRPanel;
+    public Image QRCodeImage;
     public Dropdown walletSelectionDropdown;
 
     private bool isPaused = false;
@@ -27,6 +30,7 @@ public class WalletManager : MonoBehaviour {
 
     // events
     static UnityEvent newAccountAdded;
+    static UnityEvent loadingFinished;
 
     [System.Serializable]
     public class WalletData
@@ -51,15 +55,20 @@ public class WalletManager : MonoBehaviour {
 
     public void Start()
     {
-
-        subscribeToEvents();
+        subscribeToEvents();    
         LoadWalletsFromFile();
+        RefreshTopPanelView();
     }
 
     private void subscribeToEvents()
     {
         newAccountAdded = new UnityEvent();
+        loadingFinished = new UnityEvent();
+
         newAccountAdded.AddListener(RefreshWalletAccountDropdown);
+        newAccountAdded.AddListener(RefreshTopPanelView);
+
+        loadingFinished.AddListener(hideLoadingIndicator);
     }
 
     void LoadWalletsFromFile()
@@ -95,10 +104,21 @@ public class WalletManager : MonoBehaviour {
         walletSelectionDropdown.AddOptions(new List<string> { "New Wallet" });
     }
 
-    public void AccountDropdownChanged()
+    public void RefreshTopPanelView()
     {
-        Debug.Log("Change");
+        int index = walletSelectionDropdown.value;
 
+        if (index >= walletSelectionDropdown.options.Count - 1)
+        {
+            createWalletPanel.SetActive(true);
+            operationsPanel.SetActive(false);
+        }
+
+        else
+        {
+            createWalletPanel.SetActive(false);
+            operationsPanel.SetActive(true);
+        }
     }
 
 
@@ -136,23 +156,27 @@ public class WalletManager : MonoBehaviour {
     }
 
 
-    private void showLoadingIndicator(bool loading)
+    private void disableOperationPanels()
     {
-        if (loading)
-        {
-            passwordPanel.SetActive(false);
-            ButtonPanel.SetActive(false);
+        createWalletPanel.SetActive(false);
+    }
 
-            loadingIndicatorPanel.SetActive(true);
-        }
+    private void hideLoadingIndicator()
+    {
+        loadingIndicatorPanel.SetActive(false);
+    }
+
+    private void showLoadingIndicator()
+    {
+        loadingIndicatorPanel.SetActive(true);
     }
 
     public void CreateWallet()
     {
         if (passwordInputField.passwordConfirmed())
         {
-
-            showLoadingIndicator(true);
+            disableOperationPanels();
+            showLoadingIndicator();
 
             // Here we call CreateAccount() and we send it a password to encrypt the new account
             StartCoroutine(CreateAccountCoroutine(passwordInputField.passwordString(),
