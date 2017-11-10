@@ -15,6 +15,12 @@ public class PasswordInputField : MonoBehaviour {
         return m_passwordConfirmed;
     }
 
+    public void resetFields()
+    {
+        gameObject.GetComponent<InputField>().text = "";
+        confirmPasswordInputField.text = "";
+    }
+
     public string passwordString()
     {
         return gameObject.GetComponent<InputField>().text;

@@ -17,13 +17,16 @@ public class WalletManager : MonoBehaviour {
     // UI Components
     public PasswordInputField passwordInputField;
     public LogText logText;
+    public InputField recepientAddressInputField;
     public GameObject createWalletPanel;
     public GameObject loadingIndicatorPanel;
     public GameObject operationsPanel;
     public GameObject accountInfoPanel;
     public GameObject QRPanel;
-    public Image QRCodeImage;
+    public RawImage QRCodeImage;
+    public Text QRCodeLoadingText;
     public Dropdown walletSelectionDropdown;
+    public Dropdown recepientAddressDropdown;
 
     private bool isPaused = false;
     private bool dataSaved = false;
@@ -90,6 +93,35 @@ public class WalletManager : MonoBehaviour {
         logText.Log("Loaded " + walletList.Count + " Wallet/s");
     }
 
+    public void RecepientAddressDropdownSelected()
+    {
+        if (recepientAddressDropdown.value > 0)
+            recepientAddressInputField.text = recepientAddressDropdown.options[recepientAddressDropdown.value].text;
+
+        // reset to none when a value is selected
+        recepientAddressDropdown.value = 0;
+    }
+
+    public void RefreshRecepientAddressDropdown()
+    {
+        recepientAddressDropdown.ClearOptions();
+
+        // add default none option
+        recepientAddressDropdown.AddOptions(new List<string> { "-" });
+
+        int index = 0;
+
+        foreach (WalletData w in walletList)
+        {
+            if (index != walletSelectionDropdown.value)
+                recepientAddressDropdown.AddOptions(new List<string> { w.address });
+
+            index++;
+        }
+
+        recepientAddressDropdown.gameObject.SetActive(recepientAddressDropdown.options.Count > 0);
+    }
+
 
     public void RefreshWalletAccountDropdown()
     {
@@ -97,7 +129,7 @@ public class WalletManager : MonoBehaviour {
 
         foreach (WalletData w in walletList)
         {
-            walletSelectionDropdown.AddOptions(new List<string> { w.address });
+            walletSelectionDropdown.AddOptions(new List<string> { w.address });            
         }
 
         // add wallet create option
@@ -106,6 +138,11 @@ public class WalletManager : MonoBehaviour {
 
     public void RefreshTopPanelView()
     {
+        passwordInputField.resetFields();
+        recepientAddressInputField.text = "";
+
+        RefreshRecepientAddressDropdown();
+
         int index = walletSelectionDropdown.value;
 
         if (index >= walletSelectionDropdown.options.Count - 1)
@@ -210,6 +247,7 @@ public class WalletManager : MonoBehaviour {
             walletList.Add(w);
 
             newAccountAdded.Invoke();
+            loadingFinished.Invoke();
         });
     }
 
