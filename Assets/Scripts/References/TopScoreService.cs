@@ -51,10 +51,10 @@ public class TopScoreService : MonoBehaviour {
         _scoreContractService = new ScoreContractService ();
 
         //Coroutines
-        StartCoroutine (GetExternalAccount ());
+        // StartCoroutine (GetExternalAccount ());
         StartCoroutine (GetTopScores ());
-        StartCoroutine (CheckTopScore ());
-        StartCoroutine (CheckSubmitScore ());
+        // StartCoroutine (CheckTopScore ());
+        // StartCoroutine (CheckSubmitScore ());
     }
 
     public IEnumerator GetTopScores () {
@@ -68,6 +68,7 @@ public class TopScoreService : MonoBehaviour {
 
             //Use the service to create a call input which includes the encoded  
             var countTopScoresCallInput = _scoreContractService.CreateCountTopScoresCallInput ();
+
             //Call request sends and yield for response	
             yield return topScoreRequest.SendRequest (countTopScoresCallInput, Nethereum.RPC.Eth.DTOs.BlockParameter.CreateLatest ());
 

@@ -1,20 +1,26 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Numerics;
 using System.Linq;
 using System.Runtime.InteropServices;
+using Nethereum.ABI.Encoders;
 using Nethereum.ABI.FunctionEncoding;
+using Nethereum.ABI.FunctionEncoding.Attributes;
 using Nethereum.ABI.Model;
 using Nethereum.Contracts;
 using Nethereum.Hex.HexTypes;
+using Nethereum.Hex.HexConvertors.Extensions;
 using Nethereum.JsonRpc.Client;
 using Nethereum.JsonRpc.UnityClient;
+using Nethereum.RPC.Eth.DTOs;
+using Nethereum.RPC.Eth.Transactions;
 using Nethereum.Util;
+using Nethereum.Signer;
 using UnityEngine;
 using UnityEngine.Networking;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
-
 
 public class TokenContractService : MonoBehaviour
 {
@@ -37,18 +43,20 @@ public class TokenContractService : MonoBehaviour
     private Contract contract;
 
     private string _url;
-    //Service to generate, encode and decode CallInput and TransactionInpput
-    //This includes the contract address, abi,, etc, similar to a generic Nethereum services
+
     private ScoreContractService _scoreContractService;
 
     void Awake()
     {
-        // Here we assign the contract as a new contract and we send it the ABI and contact address
-        this.contract = new Contract(null, ABI, TokenContractAddress);
 
         // retrieve the url from the Wallet Manager
         _url = WalletManager.Instance.networkUrl;
 
+        // Here we assign the contract as a new contract and we send it the ABI and contact address
+        this.contract = new Contract(null, ABI, TokenContractAddress);
+
+
+        StartCoroutine(GetTokenInfo());
 
     }
     public IEnumerator GetTokenInfo()
@@ -62,22 +70,29 @@ public class TokenContractService : MonoBehaviour
             //Create a unity call request (we have a request for each type of rpc operation)
             var topScoreRequest = new EthCallUnityRequest(_url);
 
+            // get token name
+            var nameCallInput = CreateNameCallInput();
+            yield return topScoreRequest.SendRequest(nameCallInput, Nethereum.RPC.Eth.DTOs.BlockParameter.CreateLatest());
+
+            Debug.Log( DecodeName(topScoreRequest.Result));
+
+            /*
             //Use the service to create a call input which includes the encoded  
-            var countTopScoresCallInput = _scoreContractService.CreateCountTopScoresCallInput();
+            var countTopScoresCallInput = CreateCountTopScoresCallInput();
             //Call request sends and yield for response	
             yield return topScoreRequest.SendRequest(countTopScoresCallInput, Nethereum.RPC.Eth.DTOs.BlockParameter.CreateLatest());
 
             //decode the top score using the service
-            var scores = new List<TopScoresDTO>();
+            var scores = new List<TokenDTO>();
 
-            var count = _scoreContractService.DecodeTopScoreCount(topScoreRequest.Result);
+            var count = DecodeTopScoreCount(topScoreRequest.Result);
             for (int i = 0; i < count; i++)
             {
                 topScoreRequest = new EthCallUnityRequest(_url);
-                var topScoreCallInput = _scoreContractService.CreateTopScoresCallInput(i);
+                var topScoreCallInput = CreateTopScoresCallInput(i);
                 yield return topScoreRequest.SendRequest(topScoreCallInput, Nethereum.RPC.Eth.DTOs.BlockParameter.CreateLatest());
 
-                scores.Add(_scoreContractService.DecodeTopScoreDTO(topScoreRequest.Result));
+                scores.Add(DecodeTopScoreDTO(topScoreRequest.Result));
             }
 
             var orderedScores = scores.OrderByDescending(x => x.Score).ToList();
@@ -90,9 +105,115 @@ public class TokenContractService : MonoBehaviour
 
             }
            // topScoresAllTimeText.text = topScores;
+           */
         }
 
     }
 
+    public Function GetFunctionTokenName()
+    {
+        return contract.GetFunction("name");
+    }
+
+    public CallInput CreateNameCallInput()
+    {
+        var
+        function = GetFunctionTokenName();
+        return function.CreateCallInput();
+    }
+
+    public Function GetUserTopScoresFunction()
+    {
+        return contract.GetFunction("userTopScores");
+    }
+
+    public Function GetFunctionTopScores()
+    {
+        return contract.GetFunction("topScores");
+    }
+
+    public Function GetFunctionGetCountTopScores()
+    {
+        return contract.GetFunction("getCountTopScores");
+    }
+
+    public CallInput CreateUserTopScoreCallInput(string userAddress)
+    {
+        var
+        function = GetUserTopScoresFunction();
+        return function.CreateCallInput(userAddress);
+    }
+
+    public CallInput CreateTopScoresCallInput(BigInteger index)
+    {
+        var
+        function = GetFunctionTopScores();
+        return function.CreateCallInput(index);
+    }
+
+    public CallInput CreateCountTopScoresCallInput()
+    {
+        var
+        function = GetFunctionGetCountTopScores();
+        return function.CreateCallInput();
+    }
+
+    public Function GetFunctionSetTopScore()
+    {
+        return contract.GetFunction("setTopScore");
+    }
+
+    public TransactionInput CreateSetTopScoreTransactionInput(string addressFrom, string addressOwner, string privateKey, BigInteger score, HexBigInteger gas = null, HexBigInteger valueAmount = null)
+    {
+        var numberBytes = new IntTypeEncoder().Encode(score);
+        var sha3 = new Nethereum.Util.Sha3Keccack();
+        var hash = sha3.CalculateHashFromHex(addressFrom, addressOwner, numberBytes.ToHex());
+        var signer = new MessageSigner();
+        var signature = signer.Sign(hash.HexToByteArray(), privateKey);
+        var ethEcdsa = MessageSigner.ExtractEcdsaSignature(signature);
+
+        var
+        function = GetFunctionSetTopScore();
+        return function.CreateTransactionInput(addressFrom, gas, valueAmount, score, ethEcdsa.V, ethEcdsa.R, ethEcdsa.S);
+    }
+
+    public string DecodeName(string result)
+    {
+        var
+        function = GetFunctionTokenName();
+        return function.DecodeSimpleTypeOutput<string>(result);
+    }
+
+
+    public int DecodeUserTopScoreOutput(string result)
+    {
+        var
+        function = GetUserTopScoresFunction();
+        return function.DecodeSimpleTypeOutput<int>(result);
+    }
+
+    public int DecodeTopScoreCount(string result)
+    {
+        var
+        function = GetFunctionGetCountTopScores();
+        return function.DecodeSimpleTypeOutput<int>(result);
+    }
+
+    public TokenDTO DecodeTopScoreDTO(string result)
+    {
+        var
+        function = GetFunctionTopScores();
+        return function.DecodeDTOTypeOutput<TokenDTO>(result);
+    }
+}
+
+[FunctionOutput]
+public class TokenDTO
+{
+    [Parameter("address", "addr", 1)]
+    public string Addr { get; set; }
+
+    [Parameter("int256", "score", 2)]
+    public BigInteger Score { get; set; }
 
 }

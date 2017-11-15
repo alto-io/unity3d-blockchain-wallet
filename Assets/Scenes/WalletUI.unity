@@ -1820,7 +1820,7 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 25693997}
   m_HandleRect: {fileID: 25693996}
   m_Direction: 2
-  m_Value: 0
+  m_Value: 1
   m_Size: 1
   m_NumberOfSteps: 0
   m_OnValueChanged:
@@ -6564,7 +6564,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   networkUrl: https://ropsten.infura.io
-  tokenAddress: 0x1D8338C008FEde66018B71b70956766e41dA34eA
   passwordInputField: {fileID: 1979659262}
   logText: {fileID: 635445544}
   recepientAddressInputField: {fileID: 1775954983}
