@@ -5,6 +5,15 @@ using UnityEngine.Events;
 using UnityEngine.UI;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.IO;
+using Nethereum.JsonRpc.UnityClient;
+using Nethereum.Contracts;
+using Nethereum.RPC.Eth.DTOs;
+using System.Numerics;
+using Nethereum.Hex.HexTypes;
+using Nethereum.ABI.Encoders;
+using Nethereum.Signer;
+using Nethereum.Hex.HexConvertors.Extensions;
+
 
 public class WalletManager : MonoBehaviour {
 
@@ -14,7 +23,12 @@ public class WalletManager : MonoBehaviour {
     public void Awake() { if (instance == null) instance = this; }
     public void OnDestroy() { if (instance == this) instance = null; }
 
-    // UI Components
+    [Header("Config")]
+
+    public string networkUrl;
+
+    [Header("UI Components")]
+
     public PasswordInputField passwordInputField;
     public LogText logText;
     public InputField recepientAddressInputField;
@@ -226,10 +240,11 @@ public class WalletManager : MonoBehaviour {
         }
     }
 
-   // We create the function which will check the balance of the address and return a callback with a decimal variable
-    public static IEnumerator CreateAccountCoroutine(string password, string accountName)
+
+    // We create the function which will check the balance of the address and return a callback with a decimal variable
+    public IEnumerator CreateAccountCoroutine(string password, string accountName)
     {
-        yield return 0; // allow UI to updates
+        yield return 0; // allow UI to update
 
         CreateAccount(password, (address, encryptedJson, privateKey) =>
         {
@@ -252,7 +267,7 @@ public class WalletManager : MonoBehaviour {
     }
 
     // This function will just execute a callback after it creates and encrypt a new account
-    public static void CreateAccount(string password, System.Action<string, string, byte[]> callback)
+    public void CreateAccount(string password, System.Action<string, string, byte[]> callback)
     {
         // We use the Nethereum.Signer to generate a new secret key
         var ecKey = Nethereum.Signer.EthECKey.GenerateKey();
@@ -272,6 +287,35 @@ public class WalletManager : MonoBehaviour {
         // Finally we execute the callback and return our public address and the encrypted json.
         // (you will only be able to decrypt the json with the password used to encrypt it)
         callback(address, encryptedJson, privateKey);
+    }
+
+    // We create the function which will check the balance of the address and return a callback with a decimal variable
+    public IEnumerator getAccountBalance(string address, System.Action<decimal> callback)
+    {
+        // Now we define a new EthGetBalanceUnityRequest and send it the testnet url where we are going to
+        // check the address, defined by networkUrl
+        // (we get EthGetBalanceUnityRequest from the Netherum lib imported at the start)
+
+        var getBalanceRequest = new EthGetBalanceUnityRequest(networkUrl);
+        // Then we call the method SendRequest() from the getBalanceRequest we created
+        // with the address and the newest created block.
+        yield return getBalanceRequest.SendRequest(address, Nethereum.RPC.Eth.DTOs.BlockParameter.CreateLatest());
+
+        // Now we check if the request has an exception
+        if (getBalanceRequest.Exception == null)
+        {
+            // We define balance and assign the value that the getBalanceRequest gave us.
+            var balance = getBalanceRequest.Result.Value;
+            // Finally we execute the callback and we use the Netherum.Util.UnitConversion
+            // to convert the balance from WEI to ETHER (that has 18 decimal places)
+            callback(Nethereum.Util.UnitConversion.Convert.FromWei(balance, 18));
+        }
+        else
+        {
+            // If there was an error we just throw an exception.
+            throw new System.InvalidOperationException("Get balance request failed");
+        }
+
     }
 
 
