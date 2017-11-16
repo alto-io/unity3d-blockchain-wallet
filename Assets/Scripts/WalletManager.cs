@@ -6,13 +6,9 @@ using UnityEngine.UI;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.IO;
 using Nethereum.JsonRpc.UnityClient;
-using Nethereum.Contracts;
 using Nethereum.RPC.Eth.DTOs;
 using System.Numerics;
-using Nethereum.Hex.HexTypes;
-using Nethereum.ABI.Encoders;
-using Nethereum.Signer;
-using Nethereum.Hex.HexConvertors.Extensions;
+using Nethereum.Util;
 
 [System.Serializable]
 public class WalletData
@@ -53,6 +49,13 @@ public class WalletManager : MonoBehaviour {
     public Text QRCodeLoadingText;
     public Dropdown walletSelectionDropdown;
     public Dropdown recepientAddressDropdown;
+    public Text EtherBalanceText;
+    public Text CustomTokenBalanceText;
+
+    public Text CurrencyInfoText;
+    public GameObject LoadingIndicator;
+    public Button CopyToClipboardButton;
+
 
     private bool isPaused = false;
     private bool dataSaved = false;
@@ -68,6 +71,17 @@ public class WalletManager : MonoBehaviour {
     private FileStream file;
     private string filePath;
     private const string fileName = "walletcache.data";
+
+    // copy account address to clipboard
+    public void CopyToClipboard()
+    {
+        TextEditor te = new TextEditor();
+        te.text = walletList[walletSelectionDropdown.value].address;
+        te.SelectAll();
+        te.Copy();
+
+        logText.Log("Copied address to clipboard");
+    }
 
 
     public void Start()
@@ -85,7 +99,7 @@ public class WalletManager : MonoBehaviour {
         newAccountAdded.AddListener(RefreshWalletAccountDropdown);
         newAccountAdded.AddListener(RefreshTopPanelView);
 
-        loadingFinished.AddListener(hideLoadingIndicator);
+        loadingFinished.AddListener(hideLoadingIndicatorPanel);
     }
 
     void LoadWalletsFromFile()
@@ -163,12 +177,19 @@ public class WalletManager : MonoBehaviour {
         {
             createWalletPanel.SetActive(true);
             operationsPanel.SetActive(false);
+
+            EtherBalanceText.text = "";
+            CustomTokenBalanceText.text = "";
+            CopyToClipboardButton.interactable = false;
         }
 
         else
         {
             createWalletPanel.SetActive(false);
             operationsPanel.SetActive(true);
+            CopyToClipboardButton.interactable = true;
+
+            StartCoroutine(CheckAccountBalanceCoroutine(walletList[index].address));
         }
     }
 
@@ -212,12 +233,12 @@ public class WalletManager : MonoBehaviour {
         createWalletPanel.SetActive(false);
     }
 
-    private void hideLoadingIndicator()
+    private void hideLoadingIndicatorPanel()
     {
         loadingIndicatorPanel.SetActive(false);
     }
 
-    private void showLoadingIndicator()
+    private void showLoadingIndicatorPanel()
     {
         loadingIndicatorPanel.SetActive(true);
     }
@@ -227,7 +248,7 @@ public class WalletManager : MonoBehaviour {
         if (passwordInputField.passwordConfirmed())
         {
             disableOperationPanels();
-            showLoadingIndicator();
+            showLoadingIndicatorPanel();
 
             // Here we call CreateAccount() and we send it a password to encrypt the new account
             StartCoroutine(CreateAccountCoroutine(passwordInputField.passwordString(),
@@ -240,6 +261,51 @@ public class WalletManager : MonoBehaviour {
         }
     }
 
+    public void AddInfoText(string text, bool clear = false)
+    {
+        if (clear)
+            CurrencyInfoText.text = "";
+        else
+            CurrencyInfoText.text += "\n";
+
+        CurrencyInfoText.text += text;
+
+    }
+
+    public IEnumerator CheckAccountBalanceCoroutine(string address)
+    {
+        EtherBalanceText.text = "Loading Balance...";
+        CustomTokenBalanceText.text = "";
+
+        yield return 0; // allow UI to update
+
+        var getBalanceRequest = new EthGetBalanceUnityRequest(networkUrl);
+        string etherBalance;
+        string customTokenBalance;
+
+        yield return getBalanceRequest.SendRequest(address, BlockParameter.CreateLatest());
+        if (getBalanceRequest.Exception == null)
+        {
+             etherBalance = UnitConversion.Convert.FromWei(getBalanceRequest.Result.Value).ToString();
+        }
+        else
+        {
+            throw new System.InvalidOperationException("Get balance request failed");
+        }
+
+        var tokenBalanceRequest = new EthCallUnityRequest(networkUrl);
+
+        // get custom token balance (uint 256)
+        yield return tokenBalanceRequest.SendRequest(TokenContractService.Instance.CreateCallInput("balanceOf", address), 
+            BlockParameter.CreateLatest());
+
+        customTokenBalance = UnitConversion.Convert.FromWei(
+            TokenContractService.Instance.DecodeVariable<BigInteger>("balanceOf", tokenBalanceRequest.Result), 
+            TokenContractService.Instance.TokenInfo.decimals).ToString();
+
+        EtherBalanceText.text = "ETH: " + etherBalance;
+        CustomTokenBalanceText.text = TokenContractService.Instance.TokenInfo.symbol + ": " + customTokenBalance;
+    }
 
     // We create the function which will check the balance of the address and return a callback with a decimal variable
     public IEnumerator CreateAccountCoroutine(string password, string accountName)
