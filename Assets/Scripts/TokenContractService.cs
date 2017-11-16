@@ -39,12 +39,25 @@ public class TokenContractService : MonoBehaviour
     // "0x1d8338c008fede66018b71b70956766e41da34ea";
     // Etherscan info: https://ropsten.etherscan.io/address/0x1d8338c008fede66018b71b70956766e41da34ea
 
+    public Text CurrencyInfoText;
+    public GameObject LoadingIndicator;
+
+
     // We define a new contract (Netherum.Contracts)
     private Contract contract;
 
     private string _url;
 
-    private ScoreContractService _scoreContractService;
+    public void AddInfoText(string text, bool clear = false)
+    {
+        if (clear)
+            CurrencyInfoText.text = "";
+        else
+            CurrencyInfoText.text += "\n";
+
+        CurrencyInfoText.text += text;
+
+    }
 
     void Awake()
     {
@@ -55,6 +68,9 @@ public class TokenContractService : MonoBehaviour
         // Here we assign the contract as a new contract and we send it the ABI and contact address
         this.contract = new Contract(null, ABI, TokenContractAddress);
 
+        AddInfoText("Token Address: " + TokenContractAddress, true);
+
+        LoadingIndicator.SetActive(true);
 
         StartCoroutine(GetTokenInfo());
 
@@ -74,7 +90,7 @@ public class TokenContractService : MonoBehaviour
             var nameCallInput = CreateNameCallInput();
             yield return topScoreRequest.SendRequest(nameCallInput, Nethereum.RPC.Eth.DTOs.BlockParameter.CreateLatest());
 
-            Debug.Log( DecodeName(topScoreRequest.Result));
+            AddInfoText("Name: " + DecodeName(topScoreRequest.Result));
 
             /*
             //Use the service to create a call input which includes the encoded  

@@ -35,7 +35,8 @@ public class WalletManager : MonoBehaviour {
     public GameObject createWalletPanel;
     public GameObject loadingIndicatorPanel;
     public GameObject operationsPanel;
-    public GameObject accountInfoPanel;
+    public GameObject currencyInfoPanel;
+    public GameObject currencyInfoContentRoot;
     public GameObject QRPanel;
     public RawImage QRCodeImage;
     public Text QRCodeLoadingText;
