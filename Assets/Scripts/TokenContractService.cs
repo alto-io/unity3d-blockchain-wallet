@@ -48,6 +48,16 @@ public class TokenContractService : MonoBehaviour
 
     private string _url;
 
+    private struct TokenInfo
+    {
+        public string name;
+        public string symbol;
+        public int decimals;
+        public BigInteger totalSupply;
+    };
+
+    private TokenInfo tokenInfo = new TokenInfo();
+
     public void AddInfoText(string text, bool clear = false)
     {
         if (clear)
@@ -68,13 +78,27 @@ public class TokenContractService : MonoBehaviour
         // Here we assign the contract as a new contract and we send it the ABI and contact address
         this.contract = new Contract(null, ABI, TokenContractAddress);
 
-        AddInfoText("Token Address: " + TokenContractAddress, true);
+        AddInfoText("[Loading Token...]", true);
+        AddInfoText("Address: " + TokenContractAddress);
 
         LoadingIndicator.SetActive(true);
 
         StartCoroutine(GetTokenInfo());
 
     }
+
+    public CallInput CreateCallInput(string variableName)
+    {
+        var function = contract.GetFunction(variableName);
+        return function.CreateCallInput();
+    }
+
+    public T DecodeVariable<T>(string variableName, string result)
+    {
+        var function = contract.GetFunction(variableName);
+        return function.DecodeSimpleTypeOutput<T>(result);
+    }
+
     public IEnumerator GetTokenInfo()
     {
         var wait = 0;
@@ -84,13 +108,32 @@ public class TokenContractService : MonoBehaviour
             wait = 20;
 
             //Create a unity call request (we have a request for each type of rpc operation)
-            var topScoreRequest = new EthCallUnityRequest(_url);
+            var currencyInfoRequest = new EthCallUnityRequest(_url);
 
-            // get token name
-            var nameCallInput = CreateNameCallInput();
-            yield return topScoreRequest.SendRequest(nameCallInput, Nethereum.RPC.Eth.DTOs.BlockParameter.CreateLatest());
 
-            AddInfoText("Name: " + DecodeName(topScoreRequest.Result));
+            // get token name (string)
+            yield return currencyInfoRequest.SendRequest(CreateCallInput("name"), BlockParameter.CreateLatest());
+            tokenInfo.name = DecodeVariable<string>("name", currencyInfoRequest.Result);
+
+            // get token symbol (string)
+            yield return currencyInfoRequest.SendRequest(CreateCallInput("symbol"), BlockParameter.CreateLatest());
+            tokenInfo.symbol = DecodeVariable<string>("symbol", currencyInfoRequest.Result);
+
+            // get token totalSupply (uint 256)
+            yield return currencyInfoRequest.SendRequest(CreateCallInput("totalSupply"), BlockParameter.CreateLatest());
+            tokenInfo.totalSupply = DecodeVariable<BigInteger>("totalSupply", currencyInfoRequest.Result);
+
+            // get token decimal places (uint 8)
+            yield return currencyInfoRequest.SendRequest(CreateCallInput("decimals"), BlockParameter.CreateLatest());
+            tokenInfo.decimals = DecodeVariable<int>("decimals", currencyInfoRequest.Result);
+
+
+            AddInfoText("Token Address: " + TokenContractAddress, true);
+            AddInfoText("Name: " + tokenInfo.name + " (" + tokenInfo.symbol + ")");
+            AddInfoText("Decimals: " + tokenInfo.decimals);
+            AddInfoText("Total Supply: " + UnitConversion.Convert.FromWei(tokenInfo.totalSupply, tokenInfo.decimals) + " " + tokenInfo.symbol);
+
+            LoadingIndicator.SetActive(false);
 
             /*
             //Use the service to create a call input which includes the encoded  
@@ -126,17 +169,6 @@ public class TokenContractService : MonoBehaviour
 
     }
 
-    public Function GetFunctionTokenName()
-    {
-        return contract.GetFunction("name");
-    }
-
-    public CallInput CreateNameCallInput()
-    {
-        var
-        function = GetFunctionTokenName();
-        return function.CreateCallInput();
-    }
 
     public Function GetUserTopScoresFunction()
     {
@@ -191,13 +223,6 @@ public class TokenContractService : MonoBehaviour
         var
         function = GetFunctionSetTopScore();
         return function.CreateTransactionInput(addressFrom, gas, valueAmount, score, ethEcdsa.V, ethEcdsa.R, ethEcdsa.S);
-    }
-
-    public string DecodeName(string result)
-    {
-        var
-        function = GetFunctionTokenName();
-        return function.DecodeSimpleTypeOutput<string>(result);
     }
 
 
