@@ -14,6 +14,17 @@ using Nethereum.ABI.Encoders;
 using Nethereum.Signer;
 using Nethereum.Hex.HexConvertors.Extensions;
 
+[System.Serializable]
+public class WalletData
+{
+    public string name;
+    public string address;
+
+    // TODO: stored for convenience, may need to remove for security
+    public string cachedPassword;
+    public string encryptedJson;
+    public byte[] privateKey;
+}
 
 public class WalletManager : MonoBehaviour {
 
@@ -49,18 +60,6 @@ public class WalletManager : MonoBehaviour {
     // events
     static UnityEvent newAccountAdded;
     static UnityEvent loadingFinished;
-
-    [System.Serializable]
-    public class WalletData
-    {
-        public string name;
-        public string address;
-
-        // TODO: stored for convenience, may need to remove for security
-        public string cachedPassword;
-        public string encryptedJson;
-        public byte[] privateKey;
-    }
 
     private static List<WalletData> walletList = new List<WalletData>();
 
@@ -290,36 +289,17 @@ public class WalletManager : MonoBehaviour {
         callback(address, encryptedJson, privateKey);
     }
 
-    // We create the function which will check the balance of the address and return a callback with a decimal variable
-    public IEnumerator getAccountBalance(string address, System.Action<decimal> callback)
+    public WalletData GetSelectedWalletData()
     {
-        // Now we define a new EthGetBalanceUnityRequest and send it the testnet url where we are going to
-        // check the address, defined by networkUrl
-        // (we get EthGetBalanceUnityRequest from the Netherum lib imported at the start)
+        int index = walletSelectionDropdown.value;
 
-        var getBalanceRequest = new EthGetBalanceUnityRequest(networkUrl);
-        // Then we call the method SendRequest() from the getBalanceRequest we created
-        // with the address and the newest created block.
-        yield return getBalanceRequest.SendRequest(address, Nethereum.RPC.Eth.DTOs.BlockParameter.CreateLatest());
+        if (index >= walletSelectionDropdown.options.Count - 1)
+            return null;
 
-        // Now we check if the request has an exception
-        if (getBalanceRequest.Exception == null)
-        {
-            // We define balance and assign the value that the getBalanceRequest gave us.
-            var balance = getBalanceRequest.Result.Value;
-            // Finally we execute the callback and we use the Netherum.Util.UnitConversion
-            // to convert the balance from WEI to ETHER (that has 18 decimal places)
-            callback(Nethereum.Util.UnitConversion.Convert.FromWei(balance, 18));
-        }
         else
-        {
-            // If there was an error we just throw an exception.
-            throw new System.InvalidOperationException("Get balance request failed");
-        }
+            return walletList[index];
 
     }
-
-
 
 
 

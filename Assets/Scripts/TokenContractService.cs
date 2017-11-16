@@ -42,7 +42,6 @@ public class TokenContractService : MonoBehaviour
     public Text CurrencyInfoText;
     public GameObject LoadingIndicator;
 
-
     // We define a new contract (Netherum.Contracts)
     private Contract contract;
 
@@ -78,19 +77,17 @@ public class TokenContractService : MonoBehaviour
         // Here we assign the contract as a new contract and we send it the ABI and contact address
         this.contract = new Contract(null, ABI, TokenContractAddress);
 
-        AddInfoText("[Loading Token...]", true);
-        AddInfoText("Address: " + TokenContractAddress);
-
+        AddInfoText("[Loading Token Info...]", true);
         LoadingIndicator.SetActive(true);
 
         StartCoroutine(GetTokenInfo());
 
     }
 
-    public CallInput CreateCallInput(string variableName)
+    public CallInput CreateCallInput(string variableName, params object[] p)
     {
         var function = contract.GetFunction(variableName);
-        return function.CreateCallInput();
+        return function.CreateCallInput(p);
     }
 
     public T DecodeVariable<T>(string variableName, string result)
@@ -102,38 +99,62 @@ public class TokenContractService : MonoBehaviour
     public IEnumerator GetTokenInfo()
     {
         var wait = 0;
-        while (true)
+
+        yield return new WaitForSeconds(wait);
+        wait = 20;
+
+        //Create a unity call request (we have a request for each type of rpc operation)
+        var currencyInfoRequest = new EthCallUnityRequest(_url);
+
+
+        // get token name (string)
+        yield return currencyInfoRequest.SendRequest(CreateCallInput("name"), BlockParameter.CreateLatest());
+        tokenInfo.name = DecodeVariable<string>("name", currencyInfoRequest.Result);
+
+        // get token symbol (string)
+        yield return currencyInfoRequest.SendRequest(CreateCallInput("symbol"), BlockParameter.CreateLatest());
+        tokenInfo.symbol = DecodeVariable<string>("symbol", currencyInfoRequest.Result);
+
+        // get token totalSupply (uint 256)
+        yield return currencyInfoRequest.SendRequest(CreateCallInput("totalSupply"), BlockParameter.CreateLatest());
+        tokenInfo.totalSupply = DecodeVariable<BigInteger>("totalSupply", currencyInfoRequest.Result);
+
+        // get token decimal places (uint 8)
+        yield return currencyInfoRequest.SendRequest(CreateCallInput("decimals"), BlockParameter.CreateLatest());
+        tokenInfo.decimals = DecodeVariable<int>("decimals", currencyInfoRequest.Result);
+
+
+        AddInfoText("Token Address: \n" + TokenContractAddress, true);
+        AddInfoText("Name: " + tokenInfo.name + " (" + tokenInfo.symbol + ")");
+        AddInfoText("Decimals: " + tokenInfo.decimals);
+        AddInfoText("Total Supply: " + UnitConversion.Convert.FromWei(tokenInfo.totalSupply, tokenInfo.decimals) + " " + tokenInfo.symbol);
+
+
+        WalletData wd = WalletManager.Instance.GetSelectedWalletData();
+
+        if (wd != null)
+
         {
-            yield return new WaitForSeconds(wait);
-            wait = 20;
+            var getBalanceRequest = new EthGetBalanceUnityRequest(_url);
 
-            //Create a unity call request (we have a request for each type of rpc operation)
-            var currencyInfoRequest = new EthCallUnityRequest(_url);
+            yield return getBalanceRequest.SendRequest(wd.address, BlockParameter.CreateLatest());
+            if (getBalanceRequest.Exception == null)
+            {
+                var balance = getBalanceRequest.Result.Value;
+                Debug.Log(UnitConversion.Convert.FromWei(balance, 18));
+            }
+            else
+            {
+                throw new System.InvalidOperationException("Get balance request failed");
+            }
 
+            // get custom token balance (uint 256)
+            yield return currencyInfoRequest.SendRequest(CreateCallInput("balanceOf", wd.address), BlockParameter.CreateLatest());
+            Debug.Log(DecodeVariable<BigInteger>("balanceOf", currencyInfoRequest.Result));
 
-            // get token name (string)
-            yield return currencyInfoRequest.SendRequest(CreateCallInput("name"), BlockParameter.CreateLatest());
-            tokenInfo.name = DecodeVariable<string>("name", currencyInfoRequest.Result);
+        }
 
-            // get token symbol (string)
-            yield return currencyInfoRequest.SendRequest(CreateCallInput("symbol"), BlockParameter.CreateLatest());
-            tokenInfo.symbol = DecodeVariable<string>("symbol", currencyInfoRequest.Result);
-
-            // get token totalSupply (uint 256)
-            yield return currencyInfoRequest.SendRequest(CreateCallInput("totalSupply"), BlockParameter.CreateLatest());
-            tokenInfo.totalSupply = DecodeVariable<BigInteger>("totalSupply", currencyInfoRequest.Result);
-
-            // get token decimal places (uint 8)
-            yield return currencyInfoRequest.SendRequest(CreateCallInput("decimals"), BlockParameter.CreateLatest());
-            tokenInfo.decimals = DecodeVariable<int>("decimals", currencyInfoRequest.Result);
-
-
-            AddInfoText("Token Address: " + TokenContractAddress, true);
-            AddInfoText("Name: " + tokenInfo.name + " (" + tokenInfo.symbol + ")");
-            AddInfoText("Decimals: " + tokenInfo.decimals);
-            AddInfoText("Total Supply: " + UnitConversion.Convert.FromWei(tokenInfo.totalSupply, tokenInfo.decimals) + " " + tokenInfo.symbol);
-
-            LoadingIndicator.SetActive(false);
+        LoadingIndicator.SetActive(false);
 
             /*
             //Use the service to create a call input which includes the encoded  
@@ -165,7 +186,6 @@ public class TokenContractService : MonoBehaviour
             }
            // topScoresAllTimeText.text = topScores;
            */
-        }
 
     }
 
