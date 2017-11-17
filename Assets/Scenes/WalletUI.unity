@@ -722,7 +722,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: Amount
+  m_Text: Amount in Wei
 --- !u!222 &71143139
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -2897,13 +2897,13 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 603019572}
   m_TextComponent: {fileID: 336851859}
   m_Placeholder: {fileID: 71143138}
-  m_ContentType: 0
+  m_ContentType: 2
   m_InputType: 0
   m_AsteriskChar: 42
-  m_KeyboardType: 0
+  m_KeyboardType: 4
   m_LineType: 0
   m_HideMobileInput: 0
-  m_CharacterValidation: 0
+  m_CharacterValidation: 1
   m_CharacterLimit: 0
   m_OnEndEdit:
     m_PersistentCalls:
@@ -5246,11 +5246,22 @@ MonoBehaviour:
     m_HighlightedTrigger: Highlighted
     m_PressedTrigger: Pressed
     m_DisabledTrigger: Disabled
-  m_Interactable: 0
+  m_Interactable: 1
   m_TargetGraphic: {fileID: 1257512762}
   m_OnClick:
     m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 1799793880}
+        m_MethodName: SendFundsButtonPressed
+        m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
     m_TypeName: UnityEngine.UI.Button+ButtonClickedEvent, UnityEngine.UI, Version=1.0.0.0,
       Culture=neutral, PublicKeyToken=null
 --- !u!114 &1257512762
@@ -7115,6 +7126,7 @@ MonoBehaviour:
   passwordInputField: {fileID: 1979659262}
   logText: {fileID: 635445544}
   recepientAddressInputField: {fileID: 1775954983}
+  fundTransferAmountInputField: {fileID: 603019571}
   createWalletPanel: {fileID: 1636432925}
   loadingIndicatorPanel: {fileID: 751663011}
   operationsPanel: {fileID: 1274402692}

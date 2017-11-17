@@ -1,11 +1,15 @@
 ﻿using System.Collections;
 using System.Numerics;
+using System.Text;
 using Nethereum.Contracts;
 using Nethereum.JsonRpc.UnityClient;
 using Nethereum.RPC.Eth.DTOs;
 using Nethereum.Util;
+using Nethereum.Hex.HexTypes;
 using UnityEngine;
-using UnityEngine.UI;
+using Nethereum.ABI.Encoders;
+using Nethereum.Hex.HexConvertors.Extensions;
+using Nethereum.Signer;
 
 [System.Serializable]
 public struct TokenInfo
@@ -70,6 +74,22 @@ public class TokenContractService : MonoBehaviour
 
     }
 
+    public void SendFundsButtonPressed()
+    {
+        WalletData wd = WalletManager.Instance.GetSelectedWalletData();
+
+        if (wd != null)
+        {
+            StartCoroutine(SendFunds(wd.address, WalletManager.Instance.recepientAddressInputField.text, wd.privateKey,
+                WalletManager.Instance.fundTransferAmountInputField.text));
+        }
+
+        else
+        {
+            WalletManager.Instance.logText.Log("No Wallet Account Found");
+        }
+    }
+
     public CallInput CreateCallInput(string variableName, params object[] p)
     {
         var function = contract.GetFunction(variableName);
@@ -89,33 +109,94 @@ public class TokenContractService : MonoBehaviour
         }
     }
 
+    public TransactionInput CreateTransferFundsTransactionInput(
+         // For this transaction to the contract we are going to use
+         // the address which is excecuting the transaction (addressFrom), 
+         // the address which to receive the transfer (addressTo), 
+         // the private key of that address (privateKey),
+         // the ping value we are going to send to this contract (pingValue),
+         // the maximum amount of gas to consume,
+         // the price you are willing to pay per each unit of gas consumed, (higher the price, faster the tx will be included)
+         // and the valueAmount in ETH to send to this contract.
+         // IMPORTANT: the contract doesn't accept eth transfers so this must be 0 or it will throw an error.
+         string addressFrom,
+         string addressTo,
+         string privateKey,
+         BigInteger transferAmount,
+         HexBigInteger gas = null,
+         HexBigInteger gasPrice = null,
+         HexBigInteger valueAmount = null)
+    {
+
+        var function = contract.GetFunction("transfer");
+        return function.CreateTransactionInput(addressFrom, gas, gasPrice, valueAmount, addressTo, transferAmount);
+    }
+
+    public IEnumerator SendFunds(string addressFrom, string addressTo, string accountPrivateKey, string transferAmount)
+    {
+        // Create the transaction input with encoded values for the function
+        // We will need, the public key of sender and receiver (addressFrom, addressTo),the private key (accountPrivateKey),
+        // the amount we are going to send to our contract,
+        // the gas amount (500000 in this case),
+        // the gas price (10), (you can send a gas price of null to get the default value)
+        // and the ammount of ethers you want to transfer, this contract doesn't receive ethereum transfers,
+        // so we set it to 0, you can modify it and see how it fails.
+        var transactionInput = CreateTransferFundsTransactionInput(
+            addressFrom,
+            addressTo,
+            accountPrivateKey,
+            BigInteger.Parse(transferAmount),
+            new HexBigInteger(500000),
+            new HexBigInteger(10),
+            null
+        );
+
+        // Here we create a new signed transaction Unity Request with the url, private key, and the user address we get before
+        // (this will sign the transaction automatically :D )
+        var transactionSignedRequest = new TransactionSignedUnityRequest(WalletManager.Instance.networkUrl, 
+            accountPrivateKey, addressFrom);
+
+        // Then we send it and wait
+        WalletManager.Instance.logText.Log("Sending fund transfer transaction...");
+        yield return transactionSignedRequest.SignAndSendTransaction(transactionInput);
+        if (transactionSignedRequest.Exception == null)
+        {
+            // If we don't have exceptions we just display the result, congrats!
+            WalletManager.Instance.logText.Log("transfer tx submitted: " + transactionSignedRequest.Result);
+            WalletManager.Instance.CopyToClipboard(transactionSignedRequest.Result);
+
+            // TODO: replace prefix of url derived from network url
+            Application.OpenURL("https://ropsten.etherscan.io/tx/" + transactionSignedRequest.Result);
+        }
+        else
+        {
+            // if we had an error in the UnityRequest we just display the Exception error
+            Debug.Log("Error submitting transfer tx: " + transactionSignedRequest.Exception.Message);
+        }
+    }
+
+
+
     public IEnumerator GetTokenInfo()
     {
-        var wait = 0;
-
-        yield return new WaitForSeconds(wait);
-        wait = 20;
-
         //Create a unity call request (we have a request for each type of rpc operation)
         var currencyInfoRequest = new EthCallUnityRequest(_url);
-
-
-        // get token name (string)
-        yield return currencyInfoRequest.SendRequest(CreateCallInput("name"), BlockParameter.CreateLatest());
-        TokenInfo.name = DecodeVariable<string>("name", currencyInfoRequest.Result);
 
         // get token symbol (string)
         yield return currencyInfoRequest.SendRequest(CreateCallInput("symbol"), BlockParameter.CreateLatest());
         TokenInfo.symbol = DecodeVariable<string>("symbol", currencyInfoRequest.Result);
 
-        // get token totalSupply (uint 256)
-        yield return currencyInfoRequest.SendRequest(CreateCallInput("totalSupply"), BlockParameter.CreateLatest());
-        TokenInfo.totalSupply = DecodeVariable<BigInteger>("totalSupply", currencyInfoRequest.Result);
-
         // get token decimal places (uint 8)
         yield return currencyInfoRequest.SendRequest(CreateCallInput("decimals"), BlockParameter.CreateLatest());
         TokenInfo.decimals = DecodeVariable<int>("decimals", currencyInfoRequest.Result);
 
+        // get token name (string)
+        yield return currencyInfoRequest.SendRequest(CreateCallInput("name"), BlockParameter.CreateLatest());
+        TokenInfo.name = DecodeVariable<string>("name", currencyInfoRequest.Result);
+
+        // get token totalSupply (uint 256)
+        yield return currencyInfoRequest.SendRequest(CreateCallInput("totalSupply"), BlockParameter.CreateLatest());
+        TokenInfo.totalSupply = DecodeVariable<BigInteger>("totalSupply", currencyInfoRequest.Result);    
 
         WalletManager.Instance.AddInfoText("Token Address: \n" + TokenContractAddress, true);
         WalletManager.Instance.AddInfoText("Name: " + TokenInfo.name + " (" + TokenInfo.symbol + ")");

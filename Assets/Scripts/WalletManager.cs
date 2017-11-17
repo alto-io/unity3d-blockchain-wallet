@@ -10,6 +10,9 @@ using Nethereum.RPC.Eth.DTOs;
 using System.Numerics;
 using Nethereum.Util;
 
+// TODO: IMPORTANT! A serialization bug sometimes makes the walletcache.data broken, fix this!
+// for now, always backup walletcache.data
+
 [System.Serializable]
 public class WalletData
 {
@@ -19,7 +22,7 @@ public class WalletData
     // TODO: stored for convenience, may need to remove for security
     public string cachedPassword;
     public string encryptedJson;
-    public byte[] privateKey;
+    public string privateKey;
 }
 
 public class WalletManager : MonoBehaviour {
@@ -39,6 +42,7 @@ public class WalletManager : MonoBehaviour {
     public PasswordInputField passwordInputField;
     public LogText logText;
     public InputField recepientAddressInputField;
+    public InputField fundTransferAmountInputField;
     public GameObject createWalletPanel;
     public GameObject loadingIndicatorPanel;
     public GameObject operationsPanel;
@@ -75,12 +79,17 @@ public class WalletManager : MonoBehaviour {
     // copy account address to clipboard
     public void CopyToClipboard()
     {
+        CopyToClipboard(walletList[walletSelectionDropdown.value].address);
+    }
+
+    public void CopyToClipboard(string s)
+    {
         TextEditor te = new TextEditor();
-        te.text = walletList[walletSelectionDropdown.value].address;
+        te.text = s;
         te.SelectAll();
         te.Copy();
 
-        logText.Log("Copied address to clipboard");
+        logText.Log("Copied to clipboard: \n" + s);
     }
 
 
@@ -333,7 +342,7 @@ public class WalletManager : MonoBehaviour {
     }
 
     // This function will just execute a callback after it creates and encrypt a new account
-    public void CreateAccount(string password, System.Action<string, string, byte[]> callback)
+    public void CreateAccount(string password, System.Action<string, string, string> callback)
     {
         // We use the Nethereum.Signer to generate a new secret key
         var ecKey = Nethereum.Signer.EthECKey.GenerateKey();
@@ -342,14 +351,15 @@ public class WalletManager : MonoBehaviour {
         // ecKey.GetPublicAddress() and ecKey.GetPrivateKeyAsBytes()
         // (so it return it as bytes to be encrypted)
         var address = ecKey.GetPublicAddress();
-        var privateKey = ecKey.GetPrivateKeyAsBytes();
+        var privateKeyBytes = ecKey.GetPrivateKeyAsBytes();
+        var privateKey = ecKey.GetPrivateKey();
 
         // Then we define a new KeyStore service
         var keystoreservice = new Nethereum.KeyStore.KeyStoreService();
 
         // And we can proceed to define encryptedJson with EncryptAndGenerateDefaultKeyStoreAsJson(),
         // and send it the password, the private key and the address to be encrypted.
-        var encryptedJson = keystoreservice.EncryptAndGenerateDefaultKeyStoreAsJson(password, privateKey, address);
+        var encryptedJson = keystoreservice.EncryptAndGenerateDefaultKeyStoreAsJson(password, privateKeyBytes, address);
         // Finally we execute the callback and return our public address and the encrypted json.
         // (you will only be able to decrypt the json with the password used to encrypt it)
         callback(address, encryptedJson, privateKey);
