@@ -46,11 +46,6 @@ public class WalletManager : MonoBehaviour {
     public GameObject createWalletPanel;
     public GameObject loadingIndicatorPanel;
     public GameObject operationsPanel;
-    public GameObject currencyInfoPanel;
-    public GameObject currencyInfoContentRoot;
-    public GameObject QRPanel;
-    public RawImage QRCodeImage;
-    public Text QRCodeLoadingText;
     public Dropdown walletSelectionDropdown;
     public Dropdown recepientAddressDropdown;
     public Text EtherBalanceText;
@@ -59,6 +54,11 @@ public class WalletManager : MonoBehaviour {
     public Text CurrencyInfoText;
     public GameObject LoadingIndicator;
     public Button CopyToClipboardButton;
+    public Button ShowQRCodeButton;
+
+
+    public GameObject currencyInfoScrollView;
+    public QRCodeDisplay QRPanel;
 
 
     private bool isPaused = false;
@@ -75,6 +75,13 @@ public class WalletManager : MonoBehaviour {
     private FileStream file;
     private string filePath;
     private const string fileName = "walletcache.data";
+
+    // show QR code display
+    public void ToogleQRCodeDisplay()
+    {
+        currencyInfoScrollView.SetActive(!currencyInfoScrollView.activeSelf);
+        QRPanel.gameObject.SetActive(!currencyInfoScrollView.activeSelf);
+    }
 
     // copy account address to clipboard
     public void CopyToClipboard()
@@ -190,14 +197,22 @@ public class WalletManager : MonoBehaviour {
             EtherBalanceText.text = "";
             CustomTokenBalanceText.text = "";
             CopyToClipboardButton.interactable = false;
+            ShowQRCodeButton.interactable = false;
+
+            currencyInfoScrollView.SetActive(true);
+            QRPanel.gameObject.SetActive(false);
+
         }
 
         else
         {
             createWalletPanel.SetActive(false);
             operationsPanel.SetActive(true);
-            CopyToClipboardButton.interactable = true;
 
+            CopyToClipboardButton.interactable = true;
+            ShowQRCodeButton.interactable = true;
+
+            QRPanel.RenderQRCode(walletList[index].address);
             StartCoroutine(CheckAccountBalanceCoroutine(walletList[index].address));
         }
     }
