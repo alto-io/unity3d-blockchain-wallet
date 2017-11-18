@@ -60,6 +60,9 @@ public class WalletManager : MonoBehaviour {
     public GameObject currencyInfoScrollView;
     public QRCodeDisplay QRPanel;
 
+    public GameObject MainPanel;
+    public GameObject QRScannerPanel;
+    public Button closeQRScannerButton;
 
     private bool isPaused = false;
     private bool dataSaved = false;
@@ -75,6 +78,22 @@ public class WalletManager : MonoBehaviour {
     private FileStream file;
     private string filePath;
     private const string fileName = "walletcache.data";
+
+    // show QR Scanner
+    public void ToggleQRScannerDisplay(bool forceMain = false)
+    {
+        if (forceMain)
+        {
+            MainPanel.SetActive(true);
+            QRScannerPanel.SetActive(false);
+        }
+
+        else
+        {
+            MainPanel.SetActive(!MainPanel.activeSelf);
+            QRScannerPanel.SetActive(!QRScannerPanel.activeSelf);
+        }
+    }
 
     // show QR code display
     public void ToogleQRCodeDisplay()

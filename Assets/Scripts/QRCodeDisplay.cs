@@ -38,4 +38,5 @@ public class QRCodeDisplay : MonoBehaviour {
         };
         return writer.Write(textForEncoding);
     }
+
 }
